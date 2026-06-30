@@ -24,9 +24,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 
-# ──────────────────────────────────────────────
 # DATASET
-# ──────────────────────────────────────────────
+
 
 class ScreenDataset(Dataset):
     def __init__(self, samples, transform):
@@ -73,9 +72,9 @@ val_transform = transforms.Compose([
 ])
 
 
-# ──────────────────────────────────────────────
+
 # MODEL
-# ──────────────────────────────────────────────
+
 
 def build_model():
     model = models.mobilenet_v2(weights=models.MobileNet_V2_Weights.IMAGENET1K_V1)
@@ -91,9 +90,9 @@ def build_model():
     return model.to(device)
 
 
-# ──────────────────────────────────────────────
+
 # TRAIN / EVAL LOOP
-# ──────────────────────────────────────────────
+
 
 def run_epoch(model, loader, criterion, optimizer=None):
     is_train = optimizer is not None
@@ -281,7 +280,7 @@ def main():
     }, "model.pth")
 
     n_params = sum(p.numel() for p in final_model.parameters())
-    print(f"\n✅ Saved model.pth")
+    print(f"\n Saved model.pth")
     print(f"   CV accuracy (honest estimate): {mean_acc:.4f} +/- {std_acc:.4f}")
     print(f"   Latency: ~{elapsed:.1f} ms/image on CPU")
     print(f"   Model size: {n_params:,} params (~{n_params*4/1e6:.1f} MB as float32)")

@@ -1,8 +1,4 @@
-"""
-Feature Validation Script - Screen vs Real Photo Detection
-Run: python validate_features.py
-Expects folders: real/ and screen/ in the same directory
-"""
+
 
 import os
 import cv2
@@ -135,7 +131,7 @@ def visualize(data):
 
         # Mann-Whitney U p-value (non-parametric separability test)
         _, p = stats.mannwhitneyu(r, s, alternative="two-sided")
-        sep = "✅ separable" if p < 0.05 else "❌ overlapping"
+        sep = "separable" if p < 0.05 else "❌ overlapping"
 
         ax.set_title(f"{feat}\n(p={p:.4f}) {sep}", fontsize=9)
         ax.legend(fontsize=8)
@@ -143,7 +139,7 @@ def visualize(data):
 
     plt.tight_layout()
     plt.savefig("feature_distributions.png", dpi=150)
-    print("\n📊 Saved: feature_distributions.png")
+    print("\nSaved: feature_distributions.png")
     plt.show()
 
 
@@ -170,13 +166,13 @@ if __name__ == "__main__":
     data = load_dataset()
 
     if not data["real"] or not data["screen"]:
-        print("❌ Could not load images. Check that real/ and screen/ folders exist.")
+        print(" Could not load images. Check that real/ and screen/ folders exist.")
         exit(1)
 
     print_summary(data)
-    print("\n📈 Generating feature distribution plots...")
+    print("\n Generating feature distribution plots...")
     visualize(data)
 
-    print("\n✅ Done! Check feature_distributions.png")
-    print("   Features marked ✅ are useful for your classifier.")
-    print("   Features marked ❌ may not help — consider dropping them.")
+    print("\n Done! Check feature_distributions.png")
+    print("   Features marked are useful for your classifier.")
+    print("   Features marked may not help — consider dropping them.")

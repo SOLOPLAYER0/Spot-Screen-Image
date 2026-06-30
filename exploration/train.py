@@ -1,11 +1,3 @@
-"""
-Train classifier for Screen vs Real photo detection.
-Uses the 4 validated features: color_std, noise_level, laplacian_variance, fft_peak_ratio
-Run: python train.py
-Expects: real/ and screen/ folders in same directory
-Outputs: model.pkl (classifier + scaler + feature stats)
-"""
-
 import os
 import cv2
 import numpy as np
@@ -24,9 +16,8 @@ SCREEN_DIR = "screen"
 IMG_SIZE   = (256, 256)
 
 
-# ──────────────────────────────────────────────
 # FEATURE EXTRACTION (same as validation script, 4 features only)
-# ──────────────────────────────────────────────
+
 
 def load_image(path):
     img = cv2.imread(str(path))
@@ -64,15 +55,7 @@ def feature_noise_level(gray):
 
 
 def feature_radial_fft_energy(gray):
-    """
-    Proper moire/screen-grid detector: radial profile of the 2D FFT.
-    Screens produce energy concentrated in a specific high-frequency
-    annulus (the pixel grid period), which shows up as a bump in the
-    radial spectrum that real photos don't have.
-    Returns ratio of energy in the high-frequency annulus vs low-mid.
-    Robust to lighting because FFT magnitude here is taken on a
-    locally-normalized (contrast-equalized) image.
-    """
+
     g = cv2.equalizeHist(gray)  # normalize contrast/lighting first
     f = np.fft.fft2(g.astype(np.float32))
     fshift = np.fft.fftshift(f)
@@ -95,15 +78,7 @@ def feature_radial_fft_energy(gray):
 
 
 def feature_lbp_texture_entropy(gray):
-    """
-    Local Binary Pattern entropy - captures micro-texture independent
-    of overall brightness/contrast (lighting invariant by construction,
-    since LBP only encodes local relative pixel comparisons).
-    Screen recaptures have a more regular/repetitive micro-texture
-    (lower entropy) due to the underlying pixel grid; real-world
-    surfaces have more varied texture (higher entropy) -- though the
-    direction isn't assumed, we just let the classifier learn it.
-    """
+
     # Simple 8-neighbor LBP
     h, w = gray.shape
     g = gray.astype(np.int16)
@@ -122,12 +97,7 @@ def feature_lbp_texture_entropy(gray):
 
 
 def feature_edge_density(gray):
-    """
-    Canny edge density. Screen photos often show a faint secondary
-    edge pattern from pixel/subpixel boundaries layered on top of the
-    photographed content, increasing edge density vs a real photo of
-    similar content. Auto-thresholded via median to stay lighting-robust.
-    """
+
     median = np.median(gray)
     lower = int(max(0, 0.66 * median))
     upper = int(min(255, 1.33 * median))
@@ -136,13 +106,7 @@ def feature_edge_density(gray):
 
 
 def feature_local_contrast_std(gray):
-    """
-    Std of local contrast (block-wise std of pixel values), normalized
-    by global contrast. Screens tend to have more UNIFORM local contrast
-    across blocks (panel backlighting evens things out) vs real scenes
-    which have more variable local contrast (depth, shadows, materials).
-    This ratio form cancels out absolute lighting level.
-    """
+
     block = 16
     h, w = gray.shape
     h2, w2 = h - h % block, w - w % block
@@ -154,7 +118,7 @@ def feature_local_contrast_std(gray):
 
 
 def extract_features(img):
-    """Returns feature vector in FIXED order - must match predict.py"""
+
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     return [
         feature_fft_peak_ratio(gray),
@@ -192,9 +156,8 @@ def load_dataset():
     return np.array(X), np.array(y), paths
 
 
-# ──────────────────────────────────────────────
 # TRAIN + EVALUATE
-# ──────────────────────────────────────────────
+
 
 def main():
     print("🔍 Loading dataset and extracting features...")
