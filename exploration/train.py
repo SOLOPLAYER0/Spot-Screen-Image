@@ -135,9 +135,8 @@ FEATURE_NAMES = ["fft_peak_ratio", "laplacian_variance", "color_std", "noise_lev
                   "radial_fft_energy", "lbp_texture_entropy", "edge_density", "local_contrast_std"]
 
 
-# ──────────────────────────────────────────────
 # DATASET LOADING
-# ──────────────────────────────────────────────
+
 
 def load_dataset():
     X, y, paths = [], [], []
@@ -261,7 +260,7 @@ def main():
     with open("model.pkl", "wb") as f:
         pickle.dump(bundle, f)
 
-    print(f"\n✅ Saved model.pkl ({best_model_name}, CV accuracy: {best_score:.4f})")
+    print(f"\n Saved model.pkl ({best_model_name}, CV accuracy: {best_score:.4f})")
     print(f"   Latency: ~{elapsed:.1f} ms/image on CPU")
 
 

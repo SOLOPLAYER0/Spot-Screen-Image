@@ -157,9 +157,9 @@ def print_summary(data):
     print(f"\nDataset: {len(data['real'])} real, {len(data['screen'])} screen images")
 
 
-# ──────────────────────────────────────────────
+
 # MAIN
-# ──────────────────────────────────────────────
+
 
 if __name__ == "__main__":
     print("🔍 Loading dataset...")
