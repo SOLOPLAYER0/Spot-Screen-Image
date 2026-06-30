@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+real/
+screen/
+s.jpg
+some_image.jpg
+ASSIGNMENT.pdf

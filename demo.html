@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spot the Fake Photo - Live Demo</title>
+<style>
+  body {
+    margin: 0;
+    background: #0e0e12;
+    color: #eee;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+  }
+  h1 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  p.sub {
+    color: #888;
+    font-size: 0.9rem;
+    margin-top: 0;
+    margin-bottom: 20px;
+  }
+  .video-wrap {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 0 0 3px var(--ring-color, #333);
+    transition: box-shadow 0.25s ease;
+  }
+  video {
+    display: block;
+    width: 480px;
+    max-width: 90vw;
+    height: auto;
+    transform: scaleX(-1);
+  }
+  .badge {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    backdrop-filter: blur(6px);
+    background: rgba(0,0,0,0.4);
+  }
+  .score {
+    margin-top: 18px;
+    font-size: 1rem;
+    color: #aaa;
+  }
+  .score b {
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+  .bar-wrap {
+    width: 480px;
+    max-width: 90vw;
+    height: 10px;
+    background: #222;
+    border-radius: 999px;
+    margin-top: 10px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    width: 50%;
+    transition: width 0.3s ease, background 0.3s ease;
+  }
+  .status {
+    margin-top: 16px;
+    font-size: 0.85rem;
+    color: #666;
+  }
+</style>
+</head>
+<body>
+
+  <h1>Spot the Fake Photo</h1>
+  <p class="sub">Point your camera at something real, then try holding up a screen showing a photo.</p>
+
+  <div class="video-wrap" id="videoWrap">
+    <video id="video" autoplay playsinline muted></video>
+    <div class="badge" id="badge">starting…</div>
+  </div>
+
+  <div class="score">Screen probability: <b id="scoreText">–</b></div>
+  <div class="bar-wrap"><div class="bar-fill" id="barFill"></div></div>
+  <div class="status" id="status">Requesting camera access…</div>
+
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <script>
+    const SERVER_URL = "http://localhost:5000/predict";
+    const POLL_INTERVAL_MS = 1000;
+
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const badge = document.getElementById("badge");
+    const scoreText = document.getElementById("scoreText");
+    const barFill = document.getElementById("barFill");
+    const statusEl = document.getElementById("status");
+    const videoWrap = document.getElementById("videoWrap");
+
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment", width: 640, height: 480 },
+          audio: false
+        });
+        video.srcObject = stream;
+        statusEl.textContent = "Camera live. Predicting every ~1s.";
+        requestAnimationFrame(loop);
+      } catch (err) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          video.srcObject = stream;
+          statusEl.textContent = "Camera live (front camera fallback).";
+          requestAnimationFrame(loop);
+        } catch (err2) {
+          statusEl.textContent = "No camera available: " + err2.message;
+        }
+      }
+    }
+
+    function captureFrameAsBase64() {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/jpeg", 0.8);
+    }
+
+    async function predictFrame() {
+      if (video.readyState < 2) return;
+
+      const imageData = captureFrameAsBase64();
+      try {
+        const res = await fetch(SERVER_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: imageData })
+        });
+        if (!res.ok) throw new Error("Server returned " + res.status);
+        const data = await res.json();
+        updateUI(data.score);
+        statusEl.textContent = "Camera live. Predicting every ~1s.";
+      } catch (err) {
+        statusEl.textContent = "Prediction error: " + err.message +
+          " (is server.py running on port 5000?)";
+      }
+    }
+
+    function updateUI(score) {
+      const pct = (score * 100).toFixed(1);
+      scoreText.textContent = pct + "%";
+      barFill.style.width = pct + "%";
+
+      if (score < 0.5) {
+        badge.textContent = "REAL";
+        badge.style.background = "rgba(34, 197, 94, 0.85)";
+        videoWrap.style.setProperty("--ring-color", "#22c55e");
+        barFill.style.background = "#22c55e";
+      } else {
+        badge.textContent = "SCREEN";
+        badge.style.background = "rgba(239, 68, 68, 0.85)";
+        videoWrap.style.setProperty("--ring-color", "#ef4444");
+        barFill.style.background = "#ef4444";
+      }
+    }
+
+    let lastPredictTime = 0;
+    function loop(timestamp) {
+      if (timestamp - lastPredictTime > POLL_INTERVAL_MS) {
+        lastPredictTime = timestamp;
+        predictFrame();
+      }
+      requestAnimationFrame(loop);
+    }
+
+    startCamera();
+  </script>
+
+</body>
+</html>
