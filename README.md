@@ -1,59 +1,107 @@
-# Spot the Fake Photo
-
-## Files
-
-- `predict.py` — the one-line predictor (`python predict.py some_image.jpg`)
-- `train_cnn.py` — full training pipeline (5-fold CV + final model training)
-- `model.pth` — trained model weights (MobileNetV2, fine-tuned)
-- `REPORT.md` — approach, accuracy, latency, cost-per-image, and bonus answers
-- `server.py` + `demo.html` — optional live camera demo
-
-## Running predict.py
-
+# Spot the Fake Photo 🔍
+ 
+A lightweight screen recapture detector — given a photo, it tells you whether it's a **real photo** or a **photo of a screen** (a "recapture").
+ 
+Built with a fine-tuned MobileNetV2 CNN. Runs in ~45ms on CPU, ~9MB model, deployable on-device.
+ 
+---
+ 
+## The Problem
+ 
+Mobile apps can be cheated: instead of taking a real photo of an object, a user photographs a screen (phone/laptop) displaying a picture of that object. This detector flags such attempts.
+ 
+```
+python predict.py some_image.jpg
+→ 0.04   # real photo (close to 0)
+→ 0.93   # photo of a screen (close to 1)
+```
+ 
+---
+ 
+## How It Works
+ 
+### Approach
+I first tried hand-crafted CV features (FFT frequency peaks, Laplacian variance, LBP texture entropy, edge density) with an SVM/Random Forest. This capped at ~84% accuracy — the features were too sensitive to lighting and angle variation to reliably detect the subtle moire/pixel-grid artifacts of a recaptured screen.
+ 
+I switched to **fine-tuning MobileNetV2** (pretrained on ImageNet):
+- Froze most of the network, trained only the **last 3 feature blocks + a new binary classification head**
+- Used **320×320 input** (above MobileNetV2's default 224) — screen recapture artifacts are fine-grained and get lost at lower resolution; this single change was the biggest accuracy jump
+- Heavy **data augmentation** (brightness/contrast jitter, rotation, random crop, random erasing) to handle the lighting and angle variation in the dataset
+### Results
+| Metric | Value |
+|--------|-------|
+| Accuracy | 94.0% ± 5.8% (5-fold CV) |
+| Latency | ~45ms / image (CPU) |
+| Model size | ~9MB |
+| Cost at scale | ~$0 on-device / ~$1 per million images cloud |
+ 
+---
+ 
+## Project Structure
+ 
+```
+├── predict.py          # One-line predictor: python predict.py image.jpg
+├── train_cnn.py        # Full training pipeline (5-fold CV + final model)
+├── model.pth           # Trained MobileNetV2 weights
+├── server.py           # Flask backend for live demo
+├── demo.html           # Live webcam demo page
+├── REPORT.md           # Approach note (accuracy, latency, cost, bonus Qs)
+└── exploration/        # Earlier hand-crafted feature approach (SVM/RF, ~84%)
+    ├── validate_features.py
+    ├── train.py
+    └── feature_distributions.png
+```
+ 
+---
+ 
+## Quickstart
+ 
+**Install dependencies:**
 ```bash
 pip install torch torchvision pillow
+```
+ 
+**Run prediction on a single image:**
+```bash
 python predict.py some_image.jpg
 ```
-
-Prints a single number 0–1 (0 = real, 1 = screen recapture).
-
-## Running the live demo (optional)
-
-This is a small local web demo: a Flask server runs the model, and a webpage
-uses your camera to show live REAL / SCREEN predictions updating roughly once
-per second.
-
-**1. Install dependencies (in addition to the ones above):**
+Outputs a single float: `0` = real photo, `1` = photo of a screen.
+ 
+**Retrain from scratch** (optional — needs `real/` and `screen/` image folders):
 ```bash
-pip install flask flask-cors
-```
-
-**2. Start the server** (keep this terminal running):
-```bash
-python server.py
-```
-You should see `Server starting at http://localhost:5000`.
-
-**3. Open `demo.html`** directly in a browser (just double-click it, no need
-to serve it separately). Allow camera access when prompted.
-
-**4. Try it out:** point the camera at a normal object/scene — it should show
-**REAL**. Then hold up a phone or laptop screen displaying a photo — it
-should switch to **SCREEN** within about a second.
-
-Note: this demo needs to run locally (it calls `localhost:5000`), so it's
-meant to be run on your machine rather than hosted publicly — browser camera
-access also requires HTTPS once off `localhost`, which a basic local Flask
-server doesn't provide. If you'd rather not set it up, a short screen
-recording of it running is available on request / attached.
-
-## Retraining (optional)
-
-If you want to retrain from scratch:
-```bash
-pip install torch torchvision pillow numpy
+pip install torch torchvision pillow numpy scikit-learn
 python train_cnn.py
 ```
-Expects `real/` and `screen/` folders of training images in the same
-directory. Takes a few minutes on a GPU (much longer on CPU). Outputs a new
-`model.pth`.
+Runs 5-fold cross-validation across all models, picks the best, trains a final model on the full dataset, and saves `model.pth`.
+ 
+---
+ 
+## Live Demo
+ 
+A webcam page that shows **REAL 🟢 / SCREEN 🔴** predictions updating every ~1 second.
+ 
+**1. Start the backend:**
+```bash
+pip install flask flask-cors
+python server.py
+```
+ 
+**2. Open `demo.html`** directly in your browser (double-click it — no need to serve it separately).
+ 
+Point the camera at something real → should show **REAL**. Hold up a phone/laptop screen displaying a photo → should flip to **SCREEN** within ~1 second.
+ 
+> Note: both `server.py` and `demo.html` need to be running/open at the same time. Camera access requires the browser to allow permissions on first load.
+ 
+---
+ 
+## What I'd Improve With More Time
+ 
+- **More training data** — 100 images is small for a CNN; doubling or tripling it (more devices, more lighting, more objects) would likely push past 95% and tighten the CV variance
+- **INT8 quantization** — converting to TFLite or ONNX Runtime mobile would cut model size and latency further for real on-device deployment
+- **Hard-example mining** — retrain periodically on failure cases as cheaters adapt (higher-quality screens, anti-moire filters, etc.)
+---
+ 
+## Tech Stack
+ 
+`Python` · `PyTorch` · `MobileNetV2` · `torchvision` · `Flask` · `OpenCV` · `scikit-learn`
+ 
