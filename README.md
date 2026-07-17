@@ -1,4 +1,4 @@
-# Spot the Fake Photo — Submission
+# Spot the Fake Photo
 
 ## Files
 
